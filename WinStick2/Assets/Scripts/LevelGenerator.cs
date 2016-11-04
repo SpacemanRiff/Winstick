@@ -7,6 +7,7 @@ public class LevelGenerator : MonoBehaviour {
     public int width;
     public int height;
     public int averageRoomSize;
+    public int averageRoomCount;
     private GameObject[,] tiles;
     private bool[,] tilesGenerated;
 
@@ -16,7 +17,7 @@ public class LevelGenerator : MonoBehaviour {
         tilesGenerated = new bool[width, height];
         for (int i = 0; i < width; i++) { for (int j = 0; j < height; j++) { tilesGenerated[i, j] = false; } }
 
-        int numRooms = Mathf.CeilToInt(Random.value * 4) + 2;
+        int numRooms = Mathf.CeilToInt(Random.value * (averageRoomCount)) + 2;
         Vector2[,] rooms = new Vector2[numRooms, 2]; //(w,h),(x,y)
         
         for (int i = 0; i < numRooms; i++)
