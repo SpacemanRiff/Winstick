@@ -8,27 +8,33 @@ public class LevelGenerator : MonoBehaviour {
     public int height;
     public int averageRoomSize;
     public int averageRoomCount;
-    private GameObject[,] tiles;
-    private bool[,] tilesGenerated;
+    private TileInformation[,] tiles;
+    private RoomInformation[] rooms;
 
 	// Use this for initialization
 	void Start () {
-        tiles = new GameObject[width, height];
-        tilesGenerated = new bool[width, height];
-        for (int i = 0; i < width; i++) { for (int j = 0; j < height; j++) { tilesGenerated[i, j] = false; } }
+        tiles = new TileInformation[width, height];
+        for (int i = 0; i < width; i++) { for (int j = 0; j < height; j++) { tiles[i, j] = new TileInformation(i,j); } }
 
         int numRooms = Mathf.CeilToInt(Random.value * (averageRoomCount)) + 2;
-        Vector2[,] rooms = new Vector2[numRooms, 2]; //(w,h),(x,y)
-        
+        rooms = new RoomInformation[numRooms]; //(w,h),(x,y)
+
         for (int i = 0; i < numRooms; i++)
         {
-            rooms[i, 0] = new Vector2(Mathf.CeilToInt(RandomNormal(averageRoomSize)), Mathf.CeilToInt(RandomNormal(averageRoomSize)));
-            rooms[i, 1] = new Vector2((Mathf.CeilToInt(Random.value * (width - rooms[i, 0].x))) % width, (Mathf.CeilToInt(Random.value * (height - rooms[i, 0].y))) % height);
-            Debug.Log("Room " + i + ": " + rooms[i, 0].x + " " + rooms[i, 0].y + " " + rooms[i, 1].x + " " + rooms[i, 1].y);
+            Vector2 size = new Vector2(Mathf.CeilToInt(RandomNormal(averageRoomSize)), Mathf.CeilToInt(RandomNormal(averageRoomSize)));
+            Vector2 postion = new Vector2((Mathf.CeilToInt(Random.value * (width - size.x))) % width, (Mathf.CeilToInt(Random.value * (height - size.y))) % height);
+            rooms[i] = new RoomInformation(postion, size);
         }
 
         GenerateRooms(rooms);
         AttachIsolatedRooms(rooms);
+
+        for (int i = 0; i < numRooms; i++)
+        {
+            Debug.Log("Room " + i + ": pos(" + rooms[i].getPosition().x + ", " + rooms[i].getPosition().y
+                + ") size(" + rooms[i].getSize().x + ", " + rooms[i].getSize().y
+                + ") " + rooms[i].getAdjacencyState());
+        }
 
     }
 
@@ -37,43 +43,44 @@ public class LevelGenerator : MonoBehaviour {
 	
 	}
 
-    private void GenerateRooms(Vector2[,] rooms)
+    private void GenerateRooms(RoomInformation[] rooms)
     {
         for (int i = 0; i < rooms.GetLength(0); i++)
         {
-            int[] size = { (int)rooms[i, 0].x, (int)rooms[i, 0].y };
-            int[] coords = { (int)rooms[i, 1].x, (int)rooms[i, 1].y };
-            for (int x = 0; x < size[0]; x++)
+            for (int x = 0; x < (int)rooms[i].getSize().x; x++)
             {
-                for (int y = 0; y < size[1]; y++)
+                for (int y = 0; y < (int)rooms[i].getSize().y; y++)
                 {
-                    tiles[coords[0] + x, coords[1] + y] = (GameObject)Instantiate(terrain[0]);
-                    tiles[coords[0] + x, coords[1] + y].transform.position = new Vector2(coords[0] + x, coords[1] + y);
-                    tilesGenerated[coords[0] + x, coords[1] + y] = true;
+                    tiles[(int)rooms[i].getPosition().x + x, (int)rooms[i].getPosition().y + y].activateTile(terrain[0]);
                 }
             }
         }
     }
 
-    private void AttachIsolatedRooms(Vector2[,] rooms)
+    private void AttachIsolatedRooms(RoomInformation[] rooms)
     {
         for (int i = 0; i < rooms.GetLength(0); i++)
         {
-            bool adjacent = false;
-            int[] size = { (int)rooms[i, 0].x, (int)rooms[i, 0].y };
-            int[] coords = { (int)rooms[i, 1].x, (int)rooms[i, 1].y };
-            for(int x = 0; x < size[0] && !adjacent; x++)
+            for(int x = 0; x < (int)rooms[i].getSize().x && !rooms[i].getAdjacencyState(); x++)
             {
-                if(!(coords[1]-1 < 0))
+                if(!((int)rooms[i].getPosition().y - 1 < 0))
                 {
-                    adjacent = tilesGenerated[x + coords[0], coords[1] - 1];
+                    rooms[i].setAdjacencyState(tiles[x + (int)rooms[i].getPosition().x, (int)rooms[i].getPosition().y - 1].isActive());
+                }
+                if (!((int)rooms[i].getPosition().y + (int)rooms[i].getSize().y >= height))
+                {
+                    rooms[i].setAdjacencyState(tiles[x + (int)rooms[i].getPosition().x, (int)rooms[i].getPosition().y + (int)rooms[i].getSize().y].isActive());
                 }
             }
-            for (int y = 0; y < size[1] && !adjacent; y++)
+            for (int y = 0; y < (int)rooms[i].getSize().y && !rooms[i].getAdjacencyState(); y++)
             {
-                if (!(coords[0] - 1 < 0))
+                if (!((int)rooms[i].getPosition().x - 1 < 0))
                 {
-                    adjacent = tilesGenerated[coords[0] - 1, y + coords[1]];
+                    rooms[i].setAdjacencyState(tiles[(int)rooms[i].getPosition().x - 1, y + (int)rooms[i].getPosition().y].isActive());
+                }
+                if (!((int)rooms[i].getPosition().x + (int)rooms[i].getSize().x >= width))
+                {
+                    rooms[i].setAdjacencyState(tiles[(int)rooms[i].getPosition().x + (int)rooms[i].getSize().x, y + (int)rooms[i].getPosition().y].isActive());
                 }
             }
         }
@@ -85,5 +92,49 @@ public class LevelGenerator : MonoBehaviour {
         float u2 = Random.value;
         float randStdNormal = Mathf.Sqrt(-2f * Mathf.Log((float)u1)) * Mathf.Sin(2f * Mathf.PI * u2);
         return mean + Mathf.Pow(mean, 1f/3f) * randStdNormal;
+    }
+
+    private class TileInformation
+    {
+        private bool active;
+        private GameObject tile;
+        private int x, y;
+        public TileInformation(int x, int y)
+        {
+            active = false;
+            this.x = x;
+            this.y = y;
+        }
+
+        public void activateTile(GameObject tileType)
+        {
+            active = true;
+            tile = (GameObject)Instantiate(tileType);
+            tile.transform.position = new Vector2(x, y);
+        }
+
+        public bool isActive() { return active; }
+    }
+    
+    private class RoomInformation
+    {
+        private Vector2 position;
+        private Vector2 size;
+        private bool adjacencyState;
+
+        public RoomInformation(Vector2 position, Vector2 size)
+        {
+            this.position = position;
+            this.size = size;
+            adjacencyState = false;
+        }
+
+        public void setAdjacencyState(bool adjacencyState) { this.adjacencyState = adjacencyState; }
+
+        public bool getAdjacencyState() { return adjacencyState; }
+
+        public Vector2 getPosition() { return position; }
+
+        public Vector2 getSize() { return size; }
     }
 }
