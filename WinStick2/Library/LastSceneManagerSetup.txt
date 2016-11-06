@@ -1,4 +1,4 @@
 sceneSetups:
-- path: Assets/testroom.unity
+- path: Assets/playercontroltestroom.unity
   isLoaded: 1
   isActive: 1
